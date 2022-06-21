@@ -11,3 +11,5 @@ ATMEGA128A을 이용한 AVR(Microchip Studio) 학습 리포지토리
 
 ## Day 3
   - Hyper Terminal, UART, RS232
+  - UART을 이용한 통신
+  - 8Bit Counter
