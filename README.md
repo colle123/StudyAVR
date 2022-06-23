@@ -21,3 +21,7 @@ ATMEGA128A을 이용한 AVR(Microchip Studio) 학습 리포지토리
 
 ## Day 5
   - PWM를 이용한 PIEZO Sensor 작동 실습
+  - Step Motor
+  - KeyPad
+
+## Day 6
