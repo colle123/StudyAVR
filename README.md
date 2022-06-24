@@ -25,3 +25,5 @@ ATMEGA128A을 이용한 AVR(Microchip Studio) 학습 리포지토리
   - KeyPad
 
 ## Day 6
+  - Mini-Project 1일차(DoorLock)
+    - LCD, Switch, UART, PIEZO, Motor 이용
