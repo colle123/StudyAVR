@@ -16,18 +16,18 @@ unsigned int Error_Sound[4] = {800, 1700, 800, 1700};  // Error 소리
 
 volatile char Password[] = "1234";                     // 초기 비밀번호 설정 = "1234"
 volatile char Error[] = " Error number !!";			   // Error 발생시 출력
-volatile char Interrupt_Button[] = " State Change";
-volatile char Password_Output[30];
+volatile char Interrupt_Button[] = " State Change";    // Interrupt 발생시 State 가 변경되면서 LCD 화면(0, 0)에 출력되는 Array
 volatile char Open[] = " Open";						   // Open 발생시 출력
-volatile char Output[30];							   // LCD 화면(1, 0)에 출력되는 문장
-volatile char Input[5];								   // 실제 Keypad 를 통해서 입력된 값이 저장되는 배열
-volatile char Encrypt_Input[5];                        // LCD 화면(1, 0)에는 출력되는 '*'가 저장되는 배열
+volatile char Password_Output[30];                     // FLAG = 2일때 LCD 화면(1, 0)에 출력되는 Array
+volatile char Output[30];							   // FLAG = 1일때 LCD 화면(1, 0)에 출력되는 Array
+volatile char Input[5];								   // 실제 Keypad 를 통해서 입력된 값이 저장되는 Array
+volatile char Encrypt_Input[5];                        // LCD 화면(1, 0)에는 출력되는 '*'가 저장되는 Array
 volatile int Key_Num = 0;							   // Password Array(Input, Encrypt_Input 등)에서 사용되는 Index 값
 volatile int Password_Num = 0;
 volatile unsigned char key;                            // Keyscan() Func 의 Return value 를 저장
+volatile unsigned char password;
 
-volatile int Change_Password = 0;
-volatile int FLAG = 1;
+volatile int FLAG = 1;                                 // FLAG = 0 : 초기화 / FLAG = 1 : Key 입력상태 / FLAG = 2 : Password 입력상태
 volatile int State = 0;
 
 void putch(unsigned char data){
@@ -95,7 +95,7 @@ unsigned char keyscan()
 	return 0;
 }
 
-// Input, Encrypt_Input Array 를 Initialize 해줌
+// Input, Encrypt_Input Array Initialize
 void Key_init(){
 	
 	for(int i = 0 ; i < sizeof(Input) ; i++){
@@ -107,7 +107,17 @@ void Key_init(){
 	Key_Num = 0;
 }
 
-// keypad 에서 값을 읽어와 Input, Encrypt_Input Array 에 넣어주는 함수
+// Password[] Array Initialize
+void Password_init(){
+		
+	for(int i = 0 ; i < sizeof(Password) ; i++){
+			
+		Password[i] = '\0';
+			
+	}
+}
+
+// keypad 또는 Keyboard 에서 값을 읽어와 Input, Encrypt_Input Array 에 넣어주는 함수
 void Insert_Key(){
 
 	if(State == 0){
@@ -116,7 +126,8 @@ void Insert_Key(){
 		
 		if(key == '#'){
 			
-			Change_Password = 1;
+			FLAG = 2;
+			Password_init();
 		}
 		
 		if((key >= '0') & (key <= '9')){
@@ -161,7 +172,8 @@ void Insert_Key(){
 		
 		if(key == 0x23){
 			
-			Change_Password = 1;
+			FLAG = 2;
+			Password_init();
 		}
 		
 		if((key >= 0x30) & (key <= 0x39)){
@@ -203,38 +215,39 @@ void Insert_Key(){
 	}
 }
 
+// keypad 또는 Keyboard 에서 값을 읽어와 Password Array 에 넣어주는 함수
 void Insert_Password(){
 
 	if(State == 0){
 
-		key = keyscan();
+		password = keyscan();
 		
-		if((key >= '0') & (key <= '9')){
+		if((password >= '0') & (password <= '9')){
 			
 			if(Password_Num == 0){
 				
-				Password[0] = key;
+				Password[0] = password;
 				Password[1] = '\0';
 
 			}
 			
 			if(Password_Num == 1){
 				
-				Password[1] = key;
+				Password[1] = password;
 				Password[2] = '\0';
 
 			}
 			
 			if(Password_Num == 2){
 				
-				Password[2] = key;
+				Password[2] = password;
 				Password[3] = '\0';
 
 			}
 			
 			if(Password_Num == 3){
 				
-				Password[3] = key;
+				Password[3] = password;
 				Password[4] = '\0';
 
 			}
@@ -245,32 +258,32 @@ void Insert_Password(){
 	
 	if(State == 1){
 		
-		if((key >= 0x30) & (key <= 0x39)){
+		if((password >= 0x30) & (password <= 0x39)){
 			
 			if(Password_Num == 0){
 				
-				Password[0] = key;
+				Password[0] = password;
 				Password[1] = '\0';
 				
 			}
 			
 			if(Password_Num == 1){
 				
-				Password[1] = key;
+				Password[1] = password;
 				Password[2] = '\0';
 				
 			}
 			
 			if(Password_Num == 2){
 				
-				Password[2] = key;
+				Password[2] = password;
 				Password[3] = '\0';
 
 			}
 			
 			if(Password_Num == 3){
 				
-				Password[3] = key;
+				Password[3] = password;
 				Password[4] = '\0';
 				
 			}
@@ -324,27 +337,64 @@ void Sound(int sound[]){
 // Password 수정
 void Modify_Password(){
 	
-	unsigned int i = 0;
-	
-	for(int i = 0 ; i < sizeof(Password) ; i++){
-		
-		Password[i] = '\0';
-		
-	}
-	
-	while(i < 4){
-		
 	Lcd_Clear();
 	Lcd_Pos(0, 0);
 	Lcd_STR(" Modify Password");
-		
-	Insert_Password();	
-	
+
 	Lcd_Pos(1, 0);
 	sprintf(Password_Output, " Pw : %s", Password);
-	i++;
+	
+	Insert_Password();	
+	
+}
+
+// 입력한 Input 과 기입력된 Password 를 비교하는 작업
+void Compare_Password(){
+	
+	// Input 값과 초기 지정된 Password 값이 일치하고, Password 4자리 입력했으면 Open
+	if(!strcmp(Password, Input) & Key_Num == 4){
+					
+		Lcd_Clear();
+		Lcd_Pos(0, 0);
+		Lcd_STR(Open);
+					
+		unsigned int i = 0;
+					
+		Sound(Open_Sound);
+		Motor();
+					
+		_delay_ms(2500);
+		FLAG = 0;
+					
+	}
+				
+	// Password 가 4자리 입력했지만 Password 와 다르면 Error 발생
+	else if(strcmp(Password, Input) & Key_Num == 4){
+					
+		Lcd_Clear();
+		Lcd_Pos(0, 0);
+		Lcd_STR(Error);
+					
+		Sound(Error_Sound);
+					
+		_delay_ms(2500);
+		FLAG = 0;
+	}
+				
+	else if(Key_Num >= 4){
+					
+		Lcd_Clear();
+		Lcd_Pos(0, 0);
+		Lcd_STR(Error);
+					
+		Sound(Error_Sound);
+					
+		_delay_ms(2500);
+		FLAG = 0;
 	}
 }
+
+// Switch 동작시 Interrupt 발생되면 할 동작
 SIGNAL(INT4_vect){
 	
 	cli();
@@ -373,14 +423,14 @@ int main(void)
 	DDRG = 0x00;
 	
 	UCSR0A = 0x00;
-	UCSR0B = 0x18;  // Rx, Tx
-	UCSR0C = 0x06;
+	UCSR0B = 0x18;  // (1 << RXEN0) | (1 << TXEN0)
+	UCSR0C = 0x06;  // (1 << UCSZ01) | (1 << UCSZ00)
 	UBRR0H = 0x00;
-	UBRR0L = 3;
+	UBRR0L = 3; // (1 << UBRR01) | (1 << UBRR00)   
 	
-	EICRB = 0x03;
-	EIMSK = 0x10;
-	EIFR = 0x10;
+	EICRB = 0x03; // (1 << ISC41) | (1 << ISC40) 인터럽트 4번을 상승엣지에서 사용
+	EIMSK = 0x10; // (1 << INT4) 인터럽트 4번 사용
+	EIFR = 0x10; // (1 << INTF4) 인터럽트 4번 FLAG 허용
 	
 	sei();
 	
@@ -389,7 +439,8 @@ int main(void)
 	LcdInit_4bit();
 	
 	while(1){
-				
+		
+		// FLAG == 0, Key 입력이 4개 이상되면 초기화 시켜줌		
 		if(FLAG == 0){
 			
 			Key_init();
@@ -397,8 +448,10 @@ int main(void)
 			FLAG = 1;
 		}
 		
+		// FLAG == 1, 일반적인 Key 입력상태
 		if(FLAG == 1){									
 			
+			// State = 1, KeyBoard를 이용해서 입력을 받는 상태, 0이면 Keypad 를 이용해서 입력받음.
 			if(State == 1){
 				
 				key = getch();
@@ -406,60 +459,28 @@ int main(void)
 			}
 			
 			Insert_Key();
-			
-			if(Change_Password == 1){
-				
-				Modify_Password();
-			}
 
 			Lcd_Clear();
 			Lcd_Pos(0, 0);
 			Lcd_STR(" Password Input");
-			
+				
 			sprintf(Output, " Key : %s", Encrypt_Input); // char Output[30]; " Key : ****";
 			Lcd_Pos(1, 0);
 			Lcd_STR(Output);
 			_delay_ms(200);
 			
-			// Input 값과 초기 지정된 Password 값이 일치하고, Password 4자리 입력했으면 Open
-			if(!strcmp(Password, Input) & Key_Num == 4){
-				
-				Lcd_Clear();
-				Lcd_Pos(0, 0);
-				Lcd_STR(Open);
-				
-				unsigned int i = 0;
-				
-				Sound(Open_Sound);
-				Motor();
-				
-				_delay_ms(2500);
-				FLAG = 0;
-				
-			}
+			Compare_Password();
 			
-			// Password 가 4자리 입력했지만 Password 와 다르면 Error 발생
-			else if(strcmp(Password, Input) & Key_Num == 4){
-				
-				Lcd_Clear();
-				Lcd_Pos(0, 0);
-				Lcd_STR(Error);
-				
-				Sound(Error_Sound);
-				
-				_delay_ms(2500);
-				FLAG = 0;
-			}
+		}
+		
+		// FLAG == 2, Key입력에서 '#'을 누르면 비밀번호 변경상태로 변경
+		if(FLAG == 2){
 			
-			else if(Key_Num >= 4){
+			Modify_Password();
+			
+			if(Password_Num <= 4){
 				
-				Lcd_Clear();
-				Lcd_Pos(0, 0);
-				Lcd_STR(Error);
-				
-				Sound(Error_Sound);
-				
-				_delay_ms(2500);
+				Password_Num = 0;
 				FLAG = 0;
 			}
 		}
